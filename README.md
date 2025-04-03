@@ -1,75 +1,175 @@
-# checkipaconsistency aka cipa
-Formerly known as ipa_check_consistency and check_ipa_consistency
+# FreeIPA Consistency Check (cipa) 🔍
 
-## Tool to check consistency across FreeIPA servers
-The tool can be used as a standalone consistency checker as well as a
-Nagios/Opsview plug-in (check [Nagios section below](#nagios-plug-in-mode) for
-more info).
+## Overview
 
-The script was originally written and then developed in BASH (until version
-[v1.3.0](https://github.com/peterpakos/checkipaconsistency/tree/v1.3.0)) and
-eventually ported to Python in v2.0.0.
+CheckIPA Consistency is a powerful tool originally developed by Peter Pakos, designed to verify and maintain consistency across FreeIPA servers. Initially developed in BASH and later ported to Python, this utility provides comprehensive checks for various aspects of FreeIPA deployments.
 
-It has been tested with multiple FreeIPA 4.2+ deployments across a range of
-operating systems.
+Originally created by Peter Pakos (https://github.com/peterpakos/checkipaconsistency)
+This is a community-maintained fork, continuing development of the original project.
 
-Requirements:
-* FreeIPA 4.2+
-* Python 2.7+/3.3+
-* Python modules listed in
-[requirements.txt](https://github.com/peterpakos/checkipaconsistency/blob/master/requirements.txt)
-
-If you spot any problems or have any improvement ideas then feel free to open
-an issue and I will be glad to look into it for you.
-
-## Installation
-A recommended way of installing the tool is pip install.
-
-Once installed, a command line tool `cipa` should be available in your system's PATH.
-
-### __WARNING: Never attempt pip install as root!__
-__If you do, pip will install new dependencies globally and override existing
-packages with potentially incompatible versions. This is particularly important
-when installing `cipa` on a machine running FreeIPA server.__
-
-__You should either install the package as an unprivileged user with
-`pip install --user` or use a virtual environment.__
-
-### pip install
-Please note, in RHEL/CentOS systems you may need to install the following
-packages:
-```
-$ sudo yum install python-devel openldap-devel
-```
-Debian/Ubuntu systems may require these packages instead:
-```
-$ sudo apt-get install libsasl2-dev python-dev libldap2-dev libssl-dev
-```
-
-The tool is available in PyPI and can be installed using pip:
-```
-$ pip install --user checkipaconsistency
-$ cipa --help
-```
-
-### Manual install
-Run the following command to install required Python modules:
-```
-$ git clone https://github.com/peterpakos/checkipaconsistency.git
-$ cd checkipaconsistency
-$ pip install --user -r requirements.txt
-$ ./cipa --help
-```
+### Project History
+- **Original Developer**: Peter Pakos
+- **Original Repository**: [[https://github.com/peterpakos/freeipaconsistencycheck](https://github.com/peterpakos/checkipaconsistency)]
+- **Initial Development**: BASH script (up to v1.3.0)
+- **Python Port**: Version 2.0.0 and onwards
 
 ## Configuration
-By default, the tool reads its configuration from
-`~/.config/checkipaconsistency` file (the location can be overridden by setting
-environment variable `XDG_CONFIG_HOME`). If the config file (or directory) does
-not exist then it will be automatically created and populated with sample
-config upon the next run. Alternatively, you can specify all required options
-directly from the command line.
 
-## Help
+### Configuration File
+
+By default, the tool reads its configuration from `~/.config/freeipaconsistencycheck` directory. If the config file or directory does not exist, it will be automatically created and populated with a sample configuration upon the first run.
+
+#### Configuration File Location
+- Default path: `~/.config/freeipaconsistencycheck/cipa`
+- Can be overridden by setting `XDG_CONFIG_HOME` environment variable
+
+#### Example Configuration File
+```ini
+[DEFAULT]
+# FreeIPA domain
+domain = ipa.example.com
+
+# List of IPA servers
+hosts = ipa01.example.com ipa02.example.com ipa03.example.com
+
+# Bind DN (Directory Manager)
+binddn = cn=Directory Manager
+
+# Optional: Path to bind password file
+bindpw_file = /path/to/bindpw.txt
+
+# Nagios/Opsview plugin mode checks
+nagios_checks = users,hosts,services,ugroups,hgroups,replicas
+
+# Warning and critical thresholds
+warning = 1
+critical = 2
+```
+
+## Key Features
+
+- Standalone consistency checker
+- Nagios/Opsview plugin support
+- Comprehensive server synchronization checks
+- Flexible configuration options
+
+## System Requirements
+
+- FreeIPA 4.2+
+- Python 3.9+
+- System dependencies (detailed below)
+
+## Installation
+
+### Important Pre-Installation Note ⚠️
+
+__Avoid installing with root privileges!__
+
+Installing with root can:
+- Globally install dependencies
+- Potentially override existing packages
+- Cause compatibility issues on FreeIPA servers
+
+### Recommended Installation Methods
+
+1. **User-level Install**:
+   ```bash
+   pip install --user freeipaconsistencycheck
+   ```
+
+2. **Virtual Environment**:
+   ```bash
+   python3 -m venv cipa-env
+   source cipa-env/bin/activate
+   pip install freeipaconsistencycheck
+   ```
+
+### System Dependency Preparation
+
+#### Red Hat / CentOS
+```bash
+sudo yum install python-devel openldap-devel
+```
+
+#### Debian / Ubuntu
+```bash
+sudo apt-get install libsasl2-dev python-dev libldap2-dev libssl-dev
+```
+
+## Docker Container Support
+
+### Building the Container
+
+1. Create a `Dockerfile`:
+
+```dockerfile
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libsasl2-dev \
+    python3-dev \
+    libldap2-dev \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy project files
+COPY . /app
+
+# Install dependencies and package
+RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install .
+
+ENTRYPOINT ["cipa"]
+CMD ["--help"]
+```
+
+2. Build the image:
+```bash
+docker build -t freeipaconsistencycheck .
+```
+
+### Running the Container
+
+#### Basic Usage
+```bash
+# Display help
+docker run --rm freeipaconsistencycheck
+
+# Check specific domain
+docker run --rm freeipaconsistencycheck -d ipa.example.com -W your_bind_password
+```
+
+#### Mounting Configuration
+
+You can mount your configuration file or directory to the container:
+
+1. **Mount Specific Configuration File**:
+```bash
+docker run --rm \
+    -v /path/to/your/cipa:/root/.config/freeipaconsistencycheck/cipa \
+    freeipaconsistencycheck
+```
+
+2. **Mount Entire Configuration Directory**:
+```bash
+docker run --rm \
+    -v /path/to/your/freeipaconsistencycheck:/root/.config/cipa \
+    freeipaconsistencycheck
+```
+
+3. **Additional Container Run Options**:
+```bash
+docker run --rm \
+    -v /path/to/your/cipa:/root/.config/freeipaconsistencycheck/cipa \
+    -v /path/to/bindpw.txt:/bindpw.txt \
+    freeipaconsistencycheck
+```
+
+## Command-Line Usage
+
 ```
 $ cipa --help
 usage: cipa [-H [HOSTS [HOSTS ...]]] [-d [DOMAIN]] [-D [BINDDN]] [-W [BINDPW]]
@@ -77,35 +177,23 @@ usage: cipa [-H [HOSTS [HOSTS ...]]] [-d [DOMAIN]] [-D [BINDDN]] [-W [BINDPW]]
             [-l [LOG_FILE]] [--no-header] [--no-border]
             [-n [{,all,users,susers,pusers,hosts,services,ugroups,hgroups,ngroups,hbac,sudo,zones,certs,conflicts,ghosts,bind,msdcs,replicas}]]
             [-w WARNING] [-c CRITICAL]
-
-Tool to check consistency across FreeIPA servers
-
-optional arguments:
-  -H [HOSTS [HOSTS ...]], --hosts [HOSTS [HOSTS ...]]
-                        list of IPA servers
-  -d [DOMAIN], --domain [DOMAIN]
-                        IPA domain
-  -D [BINDDN], --binddn [BINDDN]
-                        Bind DN (default: cn=Directory Manager)
-  -W [BINDPW], --bindpw [BINDPW]
-                        Bind password
-  --help                show this help message and exit
-  --version             show program's version number and exit
-  --debug               debugging mode
-  --verbose             verbose mode
-  --quiet               do not log to console
-  -l [LOG_FILE], --log-file [LOG_FILE]
-                        log to file (./cipa.log by default)
-  --no-header           disable table header
-  --no-border           disable table border
-  -n [{,all,users,susers,pusers,hosts,services,ugroups,hgroups,ngroups,hbac,sudo,zones,certs,conflicts,ghosts,bind,msdcs,replicas}]
-                        Nagios plugin mode
-  -w WARNING, --warning WARNING
-                        number of failed checks before warning (default: 1)
-  -c CRITICAL, --critical CRITICAL
+            [-o [{json,yaml}]]
 ```
 
-## Example
+### Key Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-H`, `--hosts` | List of IPA servers | None |
+| `-d`, `--domain` | IPA domain | None |
+| `--debug` | Enable debug mode | False |
+| `--verbose` | Increase output verbosity | False |
+| `-w`, `--warning` | Threshold for warning | 1 |
+
+## Example Output
+
+Here's a comprehensive example of the tool's output when checking a multi-server FreeIPA deployment:
+
 ```
 $ cipa -d ipa.example.com -W ********
 +--------------------+----------+----------+----------+-----------+----------+----------+-------+
@@ -132,48 +220,41 @@ $ cipa -d ipa.example.com -W ********
 |                    | ipa05 0  | ipa05 0  | ipa01 0  | ipa02 0   | ipa02 0  |          |       |
 |                    | ipa02 0  | ipa01 0  | ipa02 0  | ipa06 0   |          |          |       |
 +--------------------+----------+----------+----------+-----------+----------+----------+-------+
-
-```
-## Debug mode
-If you experience any problems with the tool, try running it in debug mode:
-```
-$ cipa --debug
-2017-12-22 20:05:04,494 [main] DEBUG Namespace(binddn=None, bindpw=None, critical=2, debug=True, disable_border=False, disable_header=False, domain=None, hosts=None, log_file=None, nagios_check=None, quiet=False, warning=1)
-2017-12-22 20:05:04,494 [main] DEBUG Initialising...
-2017-12-22 20:05:04,494 [main] DEBUG Config file not found at /Users/peter/.config/checkipaconsistency
-2017-12-22 20:05:04,494 [main] INFO Initial config saved to /Users/peter/.config/checkipaconsistency - PLEASE EDIT IT!
-2017-12-22 20:05:04,495 [main] CRITICAL IPA domain not set
-```
-For more verbosity use `--debug --verbose` arguments.
-
-## Nagios plug-in mode
-The tool can be easily transformed into a Nagios/Opsview check:
-```
-$ pip install checkipaconsistency
-$ su - nagios
-$ vim ~/.config/checkipaconsistency
-$ ln -s `which cipa` /usr/local/nagios/libexec/check_ipa_consistency
 ```
 
-Perform all checks using default warning/critical thresholds:
-```
-$ /usr/local/nagios/libexec/check_ipa_consistency -n all
-OK - 15/15 checks passed
+## Debugging
+
+For troubleshooting:
+
+```bash
+# Basic debug mode
+cipa --debug
+
+# Verbose debugging
+cipa --debug --verbose
 ```
 
-Perform specific check with custom alerting thresholds:
-```
-$ /usr/local/nagios/libexec/check_ipa_consistency -n users -w 2 -c3
-OK - Active Users
-```
+## LDAP Conflicts
 
-### LDAP Conflicts
-Normally conflicting changes between replicas are resolved automatically (the
-most recent change takes precedence).
-However, there are cases where manual intervention is required. If you see LDAP
-conflicts in the output of this script,
-you need to find the conflicting entries and decide which of them should be
-preserved/deleted.
+Most replication conflicts are automatically resolved, with the most recent change taking precedence. In rare cases, manual intervention may be required.
 
-More information on solving common replication conflicts can be found
-[here](https://access.redhat.com/documentation/en-us/red_hat_directory_server/10/html/administration_guide/managing_replication-solving_common_replication_conflicts).
+When LDAP conflicts are detected:
+1. Identify conflicting entries
+2. Determine which entries to preserve or delete
+
+For detailed guidance, refer to the [Red Hat Directory Server Administration Guide](https://access.redhat.com/documentation/en-us/red_hat_directory_server/10/html/administration_guide/managing_replication-solving_common_replication_conflicts).
+
+## Contributing
+
+We welcome contributions! If you find any issues or have suggestions for improvement:
+- Open an issue on the project repository
+- Submit pull requests
+- Provide detailed information about your proposed changes
+
+## License
+
+GNU GENERAL PUBLIC LICENSE Version 3
+
+## Contact
+
+For support or inquiries, please open an issue on the project's GitHub repository or contact the original developer, Peter Pakos.

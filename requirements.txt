@@ -1,4 +1,4 @@
-pplogger
 dnspython
 prettytable
 python-ldap
+PyYAML
