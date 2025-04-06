@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "freeipa-consistency-check"
+dynamic = ["version"]
+description = "Tool to check consistency between FreeIPA servers"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "GPL-3.0-or-later"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "python-ldap",
+    "dnspython",
+    "prettytable",
+    "PyYAML",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "pycodestyle",
+    "black",
+    "mypy",
+    "types-dnspython",
+    "types-PyYAML",
+    "tox",
+]
+
+[[tool.mypy.overrides]]
+module = "ldap.*"
+ignore_missing_imports = true
+
+[project.scripts]
+cipa = "freeipaconsistencycheck.main:main"
+
+[tool.setuptools]
+# Explicitly list all packages
+packages = [
+    "freeipaconsistencycheck", 
+    "freeipaconsistencycheck.server",
+    "freeipaconsistencycheck.utils"
+]
+package-dir = {"" = "src"}
+
+# Version handling
+[tool.setuptools.dynamic]
+version = {attr = "freeipaconsistencycheck.__version__"}
+
+# Add project URLs for better PyPI presentation
+[project.urls]
+"Homepage" = "https://github.com/K11MY/freeipaconsistencycheck"
+"Bug Tracker" = "https://github.com/K11MY/freeipaconsistencycheck/issues"
+
+# Add pytest configuration directly in pyproject.toml
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"

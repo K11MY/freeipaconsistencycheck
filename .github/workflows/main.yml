@@ -1,0 +1,131 @@
+name: CI/CD Pipeline for freeipaconsistencycheck
+
+on:
+  push:
+    branches: [ '**' ]  # Run on all branches
+  pull_request:
+    branches: [ main, development ]
+  workflow_dispatch:
+  release:
+    types: [created]
+
+jobs:
+  test:
+    name: Test on Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    container: 
+      image: python:${{ matrix.python-version }}-slim
+    strategy:
+      matrix:
+        python-version: ['3.9', '3.10', '3.11', '3.12']
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install system dependencies
+      run: |
+        apt-get update
+        apt-get install -y libsasl2-dev libldap2-dev libssl-dev libkrb5-dev gcc
+    
+    - name: Install tox
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install tox tox-gh-actions
+    
+    - name: Test with tox
+      run: |
+        tox
+    
+    - name: Upload coverage report
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: false
+        
+  lint:
+    name: Lint code
+    runs-on: ubuntu-latest
+    container: 
+      image: python:3.9-slim
+    
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install system dependencies
+      run: |
+        apt-get update
+        apt-get install -y libsasl2-dev libldap2-dev libssl-dev libkrb5-dev gcc
+    - name: Install tox
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install tox
+    
+    - name: Run linting
+      run: |
+        tox -e lint
+        
+  build-package:
+    name: Build Universal Python Package
+    runs-on: ubuntu-latest
+    container: 
+      image: python:3.9-slim
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python -m pip install build setuptools wheel twine
+    
+    - name: Build package
+      run: |
+        python -m build
+
+    - name: Get version
+      id: get_version
+      run: |
+        VERSION=$(python -c "import os; import sys; sys.path.insert(0, os.path.abspath('src')); from freeipaconsistencycheck import __version__; print(__version__)")
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+    
+    - name: Archive built package
+      uses: actions/upload-artifact@v4
+      with:
+        name: cipa-${{ steps.get_version.outputs.version }}
+        path: dist/
+        retention-days: 5
+
+  # publish-to-pypi:
+  #   name: Publish Python Package to PyPI
+  #   needs: [test, lint, build-package]
+  #   runs-on: ubuntu-latest
+  #   environment: freeipaconsistencycheck-pypi
+  #   # Only run this job when a release is created
+  #   if: github.event_name == 'release' && github.event.action == 'created'
+    
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #     with:
+  #       fetch-depth: 0  # Fetch all history for tags
+    
+  #   - name: Download built package
+  #     uses: actions/download-artifact@v4
+  #     with:
+  #       name: cipa-${{ github.sha }}-${{ github.run_id }}
+  #       path: dist
+    
+  #   - name: Set up Python
+  #     uses: actions/setup-python@v4
+  #     with:
+  #       python-version: '3.9'
+    
+  #   - name: Install twine
+  #     run: |
+  #       python -m pip install --upgrade pip
+  #       python -m pip install twine
+    
+  #   - name: Publish package to PyPI
+  #     uses: pypa/gh-action-pypi-publish@release/v1
+  #     with:
+  #       user: __token__
+  #       password: ${{ secrets.PYPI_API_TOKEN }}
+  #       skip-existing: true
