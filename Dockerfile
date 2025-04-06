@@ -1,3 +1,4 @@
+# PYTHON VERSION
 ARG PYTHON_VERSION=3.9
 # Build stage
 FROM python:${PYTHON_VERSION}-slim AS builder
